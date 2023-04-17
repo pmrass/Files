@@ -1,12 +1,8 @@
 classdef PMFileManagement
-    %PMFILEMANAGEMEN Summary of this class goes here
-    %   Detailed explanation goes here
+    %PMFILEMANAGEMEN For manipulating files
+    %   for example adding or changing prefixes;
 
-    properties
-        
-      
-        
-    end
+
     
     properties (Access = private)
         
@@ -23,11 +19,15 @@ classdef PMFileManagement
     end
     
     
-    methods % initialize:
+    methods % INITIALIZE
         
         function obj = PMFileManagement(varargin)
             %PMFILEMANAGEMEN Construct an instance of this class
-            %   Detailed explanation goes here
+            %   takes 0, 1, 2, or 3 arguments:
+            % 1: main folder
+            % 2: selected filenames (2 arguments)
+            %       or OldPreFixString (3 arguments:
+            % 3: NewPreFixString;
             NumberOfArguments = length(varargin);
             switch NumberOfArguments
                 case 0
@@ -41,7 +41,7 @@ classdef PMFileManagement
                 case 3
                      obj.MainFolder =        varargin{1};
                      obj.OldPreFixString = varargin{2};
-                    obj.NewPreFixString = varargin{3};
+                     obj.NewPreFixString = varargin{3};
                     
                     
                     
@@ -61,8 +61,7 @@ classdef PMFileManagement
             end
         end
         
-       
-         function obj = set.SelectedFileNames(obj, Value)
+        function obj = set.SelectedFileNames(obj, Value)
              if ischar(Value)
                 Value = {Value}; 
              end
@@ -71,79 +70,121 @@ classdef PMFileManagement
             obj.SelectedFileNames = Value;
          end
         
-        
         function obj = set.OldPreFixString(obj, Value)
             assert(ischar(Value), 'Wrong argument type.')
             obj.OldPreFixString = Value;
         end
         
-         function obj = set.NewPreFixString(obj, Value)
+        function obj = set.NewPreFixString(obj, Value)
             assert(ischar(Value), 'Wrong argument type.')
             obj.NewPreFixString = Value;
          end
         
         
     end
+    
+    methods % SUMMARY
 
-    methods % setters
-        
-        function renameFiles_AddZerosToNumbersSurroundedBy(obj, Value)
-            OldFileNames =      obj.getFileNames;
-            NewFileNames =      cellfun(@(x) PMString(x).addZeroToNumbersSurroundedBy('_').getString, OldFileNames, 'UniformOutput', false);
-            cellfun(@(old, new) obj.renameFile(old, new), OldFileNames, NewFileNames)
+        function obj = showSummary(obj)
+            fprintf('\n*** This PMFileManagement object can be used to manipulte files.\n')
+            fprintf('It has the main folder "%s".\n', obj.MainFolder)
+            fprintf('When changing filenames by prefix it detects "%s" and changes to "%s".\n', obj.OldPreFixString, obj.NewPreFixString)
             
+
         end
-            
-         function obj = setPrefixStrings(obj, old, new)
+
+        end
+    
+    methods % SETTERS
+
+        function obj = setMainFolder(obj, Value)
+
+
+            obj.MainFolder = Value;
+    end
+        
+        function obj =      setPrefixStrings(obj, old, new)
+            % SETPREFIXSTRINGS set prefix-strings
+            % takes 2 arguments:
+            % 1: string: "old" prefix:
+            % 2: string: "new" prefix
              obj.OldPreFixString = old;
              obj.NewPreFixString = new;
-         end
+        end
          
-        function obj =  resetSelectedFileNames(obj, List)
+        function obj =      resetSelectedFileNames(obj, List)
             obj.SelectedFileNames =  List; 
         end
         
+    end
+    
+    methods % GETTERS
+
+            function FileNames =            getFileNames(obj) 
+                % GETFILENAMES returns list with all filenames in folder
+                myFile =         PMFile(obj.MainFolder);
+                FileNames =      myFile.getFileNamesInDirectory;
+            end
+
+            function paths =                getSelectedPaths(obj)
+              paths  =   cellfun(@(x) [obj.MainFolder, '/', x], obj.SelectedFileNames, 'UniformOutput', false);  
+            end
+
+            function MainFolder =           getMainFolder(obj)
+            MainFolder =  obj.MainFolder;
+            end
+
+            function SelectedFileNames =    getSelectedFileNames(obj)
+            SelectedFileNames = obj.SelectedFileNames;
+            end
+
+       end
+
+    methods % EXECUTION RENAME
+        
         function addPrefixToFiles(obj)
-            ListWithFilesCell =         obj.getFileNames;
-            NumberOfFiles =     size(ListWithFilesCell,1);
-            for FileIndex = 1:NumberOfFiles
-                OldFilename_Complete=           [obj.MainFolder '/' ListWithFilesCell{FileIndex}];
-                NewFilename_Complete=           [obj.MainFolder '/' obj.NewPreFixString ListWithFilesCell{FileIndex}];
-                movefile(OldFilename_Complete,NewFilename_Complete)
+            % ADDPREFIXTOFILES adds prefix
+            % each file getts "new" prefix attached at front of filename;
+            % "old" prefix is irrelevant
+            FileNameList =         obj.getFileNames;
+            
+            for FileIndex = 1 : length(FileNameList)
+                OriginalFileName=           [obj.MainFolder '/' FileNameList{FileIndex}];
+                FileNameWithPrefix=           [obj.MainFolder '/' obj.NewPreFixString FileNameList{FileIndex}];
+                movefile(OriginalFileName,FileNameWithPrefix)
             end
         end
         
-    
-        function obj =  renameFile(obj, OldFileName, NewFileName)
+        function replaceStringsInFile(obj)
+            % REPLACEPREFIXSTRINGS replaces the "old" prefix-string with the "new" prefix-string in the each file in the selected folder;
+            
+            ListWithAllFileNamesInMainFolder = obj.getFileNames;
+            LengthOfReplacedString = length(obj.OldPreFixString);
+            
+            for FileIndex = 1 : size(ListWithAllFileNamesInMainFolder,1)
+                
+                OldFileName =               ListWithAllFileNamesInMainFolder{FileIndex};
+                ListWithMatches =           strfind(OldFileName, obj.OldPreFixString);
+                if length(ListWithMatches) == 1  
+                    
+                    FirstPart =             OldFileName(1 : ListWithMatches - 1);
+                    LastPart =              OldFileName(ListWithMatches + LengthOfReplacedString : end);
+                    NewName =               [FirstPart  obj.NewPreFixString LastPart];
+                    
+                    movefile([obj.MainFolder '/'  OldFileName], [obj.MainFolder '/'  NewName]) % rename file
+                    
+                end          
+
+            end        
+            
+        end
+
+        function obj =      renameFile(obj, OldFileName, NewFileName)
             
             myFile =    PMFile(obj.MainFolder, OldFileName);
             myFile =    myFile.renameFileWith(NewFileName);
             
         
-        end
-        
-        
-        function replacePrefixStrings(obj)
-            
-            ListWithAllFileNamesInMainFolder = obj.getFileNames;
-            
-            for FileIndex = 1 : size(ListWithAllFileNamesInMainFolder,1)
-                
-                OldFileName = ListWithAllFileNamesInMainFolder{FileIndex};
-                ListWithMatches =    strfind(OldFileName, obj.OldPreFixString);
-                if length(ListWithMatches) == 1  && ListWithMatches == 1
-                    
-                    OldFilePath=            [obj.MainFolder '/' OldFileName];   
-                    
-                    OldFileNameWithOutPrefix =           OldFileName(ListWithMatches + length(obj.OldPreFixString)  : end); % remove old prefix
-                    NewFilePath=            [obj.MainFolder '/'  obj.NewPreFixString OldFileNameWithOutPrefix]; % add new prefix
-                    
-                    movefile(OldFilePath, NewFilePath) % rename file
- 
-                end          
-
-            end        
-            
         end
         
         function removePrefixFromFile(obj)
@@ -190,56 +231,24 @@ classdef PMFileManagement
             end
             
         end
-   
         
-        
-
-
-    end
-
-    methods % summary
-
-        function obj = showSummary(obj)
-            
-            
-            fprintf('\n*** This PMFileManagement object can be used to manipulte files.\n')
-            fprintf('It has the main folder "%s".\n', obj.MainFolder)
-            fprintf('When changing filenames by prefix it detects "%s" and changes to "%s".\n', obj.OldPreFixString, obj.NewPreFixString)
-        
-            
-            
-            
-             
-        
-        
+        function renameFiles_AddZerosToNumbersSurroundedBy(obj, Value)
+            OldFileNames =      obj.getFileNames;
+            NewFileNames =      cellfun(@(x) PMString(x).addZeroToNumbersSurroundedBy('_').getString, OldFileNames, 'UniformOutput', false);
+            cellfun(@(old, new) obj.renameFile(old, new), OldFileNames, NewFileNames)
             
         end
 
     end
-
-    methods % getters
-
-       function FileNames = getFileNames(obj)    
-           myFile =         PMFile(obj.MainFolder);
-           FileNames =      myFile.getFileNamesInDirectory;
-        end
-          function paths = getSelectedPaths(obj)
-              paths  =   cellfun(@(x) [obj.MainFolder, '/', x], obj.SelectedFileNames, 'UniformOutput', false);  
-         end
-          function MainFolder = getMainFolder(obj)
-            MainFolder =  obj.MainFolder;
-        end
-        
-        function SelectedFileNames = getSelectedFileNames(obj)
-            SelectedFileNames = obj.SelectedFileNames;
-            
-        end
-        
-      
+    
+    methods % COPY
         
         
     end
 
+
+
+ 
 
 end
 
