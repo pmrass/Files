@@ -8,6 +8,7 @@ classdef PMFile
         Content
         
         SuppressNewLine = false;
+        Separator
         
     end
     
@@ -158,6 +159,10 @@ classdef PMFile
                     obj.SuppressNewLine = false;
                 case 1
                     obj.SuppressNewLine = varargin{1};
+
+                case 2
+                   obj.SuppressNewLine =         varargin{1};
+                    obj.Separator =         varargin{2};
                     
                 otherwise
                     error('Wrong input.')
@@ -314,6 +319,8 @@ classdef PMFile
     methods (Access = private)  % write file
         
         function obj = executeExportingCellAsText(obj, MyTextCell)
+
+
            
             fid =                  fopen(obj.getPath, 'wt');
             NumberOfRows=           size(MyTextCell, 1);
@@ -322,7 +329,11 @@ classdef PMFile
             for CurrentRow= 1 : NumberOfRows
                  ColumnText = '';
                 for ColumnIndex = 1: NumberOfColumns
-                    ColumnText = sprintf('%s%s', ColumnText, MyTextCell{CurrentRow, ColumnIndex});
+                    if isempty(obj.Separator)
+                        ColumnText = sprintf('%s%s', ColumnText, MyTextCell{CurrentRow, ColumnIndex});
+                    else
+                        ColumnText = sprintf('%s%s%s', ColumnText, MyTextCell{CurrentRow, ColumnIndex}, obj.Separator);
+                    end
                 end
                 
                 if obj.SuppressNewLine
